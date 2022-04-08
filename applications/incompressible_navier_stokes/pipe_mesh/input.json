@@ -15,11 +15,15 @@
         "RefineTimeMax": "0"
     },
     "Application": {
-        "InputMesh": "data/minimal.vtk"
+        "InputMesh": "./minimal.vtk",
+        "MaxInflowVelocity": "1.0",
+	"InflowRadius": "1.0",
+	"InflowPosX": "1.0",
+	"InflowPosY": "1.0"
     },
     "Output": {
-        "OutputDirectory": "data/output/",
-        "OutputName": "l0_k2",
+        "OutputDirectory": "output/",
+        "OutputName": "l0_k0",
         "WriteOutput": "true"
     }
 }

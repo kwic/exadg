@@ -31,11 +31,11 @@ namespace IncNS
 {
 
 template<int dim>
-class AnalyticalSolutionVelocity : public dealii::Function<dim>
+class InflowProfileVelocity : public dealii::Function<dim>
 {
 public:
-  AnalyticalSolutionVelocity(double const max_velocity, double const H)
-    : dealii::Function<dim>(dim, 0.0), max_velocity(max_velocity), H(H)
+  InflowProfileVelocity(double const max_velocity, double const radius, double const x, double const y)
+    : dealii::Function<dim>(dim, 0.0), max_velocity(max_velocity), radius(radius), x(x), y(y)
   {
   }
 
@@ -44,63 +44,17 @@ public:
   {
     double result = 0.0;
 
-    if(component == 0)
-      result = max_velocity; // * (1.0 - pow(p[1] / (H / 2.), 2.0));
-
-    return result;
-  }
-
-private:
-  double const max_velocity, H;
-};
-
-template<int dim>
-class NeumannBoundaryVelocity : public dealii::Function<dim>
-{
-public:
-  NeumannBoundaryVelocity(FormulationViscousTerm const & formulation,
-                          double const                   max_velocity,
-                          double const                   H,
-                          double const                   normal)
-    : dealii::Function<dim>(dim, 0.0),
-      formulation(formulation),
-      max_velocity(max_velocity),
-      H(H),
-      normal(normal)
-  {
-  }
-
-  double
-  value(dealii::Point<dim> const & p, unsigned int const component = 0) const
-  {
-    (void)p;
-    (void)component;
-
-    double result = 0.0;
-
-    // The Neumann velocity boundary condition that is consistent with the analytical solution
-    // (in case of a parabolic inflow profile) is (grad U)*n = 0.
-
-    // Hence:
-    // If the viscous term is written in Laplace formulation, prescribe result = 0 as Neumann BC
-    // If the viscous term is written in Divergence formulation, the following boundary condition
-    // has to be used to ensure that (grad U)*n = 0:
-    // (grad U + (grad U)^T)*n = (grad U)^T * n
-
-    if(formulation == FormulationViscousTerm::DivergenceFormulation)
-    {
-      if(component == 1)
-        result = -max_velocity * 2.0 * p[1] / std::pow(H / 2., 2.0) * normal;
+    if(component == 2) {
+      double dx = p[0] - x;
+      double dy = p[1] - y;
+      double fac = (dx*dx + dy*dy) / (radius*radius);
+      result = std::max(0.0, max_velocity * (1.0 - fac));
     }
-
     return result;
   }
 
 private:
-  FormulationViscousTerm const formulation;
-  double const                 max_velocity;
-  double const                 H;
-  double const                 normal;
+  double const max_velocity, radius, x, y;
 };
 
 
@@ -120,6 +74,10 @@ public:
 
     // clang-format off
     prm.enter_subsection("Application");
+      prm.add_parameter("MaxInflowVelocity", input_max_vel, "Maximum inflow velocity");
+      prm.add_parameter("InflowRadius", input_radius, "Radius of parabolic inflow profile");
+      prm.add_parameter("InflowPosX", input_x, "X position of parabolic inflow profile center");
+      prm.add_parameter("InflowPosY", input_y, "Y position of parabolic inflow profile center");
       prm.add_parameter("InputMesh", input_mesh_path, "Path to mesh VTU file");
     prm.leave_subsection();
     // clang-format on
@@ -130,6 +88,7 @@ private:
   parse_parameters() final
   {
     ApplicationBase<dim, Number>::parse_parameters();
+    max_velocity = 2.0 * input_max_vel;
   }
 
   void
@@ -165,7 +124,7 @@ private:
     this->param.convergence_criterion_steady_problem =
       ConvergenceCriterionSteadyProblem::SolutionIncrement; // ResidualSteadyNavierStokes;
     this->param.abs_tol_steady = 1.e-12;
-    this->param.rel_tol_steady = 1.e-6;
+    this->param.rel_tol_steady = 1.e-8;
 
     // output of solver information
     this->param.solver_info_data.interval_time =
@@ -340,11 +299,11 @@ private:
 
     // inflow
     this->boundary_descriptor->velocity->dirichlet_bc.insert(
-      pair(1, new AnalyticalSolutionVelocity<dim>(max_velocity, H)));
+      pair(1, new InflowProfileVelocity<dim>(input_max_vel, input_radius, input_x, input_y)));
 
     // outflow
     this->boundary_descriptor->velocity->neumann_bc.insert(
-      pair(2, new NeumannBoundaryVelocity<dim>(formulation_viscous_term, max_velocity, H, 1.0)));
+      pair(2, new dealii::Functions::ZeroFunction<dim>(dim)));
 
     // fill boundary descriptor pressure
 
@@ -395,11 +354,15 @@ private:
   }
 
   std::string input_mesh_path;
+  double input_max_vel = 1.0;
+  double input_radius = 1.0;
+  double input_x = 1.0;
+  double input_y = 1.0;
 
   FormulationViscousTerm const formulation_viscous_term =
     FormulationViscousTerm::LaplaceFormulation;
 
-  double const max_velocity = 1.0;
+  double max_velocity = input_max_vel;
   double const viscosity    = 1.0e-1;
 
   double const H = 2.0;
