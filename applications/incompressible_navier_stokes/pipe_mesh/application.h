@@ -23,7 +23,6 @@
 #define APPLICATIONS_INCOMPRESSIBLE_NAVIER_STOKES_TEST_CASES_PIPE_MESH_H_
 
 #include <deal.II/grid/grid_in.h>
-#include <deal.II/grid/grid_out.h>
 
 namespace ExaDG
 {
@@ -217,70 +216,10 @@ private:
   void
   create_grid() final
   {
-#if 1
-    dealii::Triangulation<2> tria;
-    dealii::GridGenerator::hyper_ball(tria);
-
-    for (const auto cell : tria.active_cell_iterators())
-    {
-      if (cell->center()[0] < 0)
-        cell->set_refine_flag();
-    }
-    tria.execute_coarsening_and_refinement();
-
-    for (const auto cell : tria.active_cell_iterators())
-    {
-      if (cell->center()[1] < 0)
-        cell->set_refine_flag();
-    }
-    tria.execute_coarsening_and_refinement();
-
-    {
-      std::ofstream     out("grid.vtu");
-      dealii::GridOut           go;
-      dealii::GridOutFlags::Vtu vtu_flags(true);
-      go.set_flags(vtu_flags);
-      go.write_vtu(tria, out);
-    }
-
-
     dealii::GridIn<dim> grid_in;
     grid_in.attach_triangulation(*this->grid->triangulation);
     std::ifstream input_file(input_mesh_path);
     grid_in.read_vtk(input_file);
-
-    {
-      std::ofstream     out("grid-1.vtu");
-      dealii::GridOut           go;
-      dealii::GridOutFlags::Vtu vtu_flags(true);
-      go.set_flags(vtu_flags);
-      go.write_vtu(*this->grid->triangulation, out);
-    }
-
-    //const SphericalManifold<dim> boundary;
-    //triangulation.set_all_manifold_ids_on_boundary(0);
-    //triangulation.set_manifold(0, boundary);
-#else
-    double const              y_upper = H / 2.;
-    dealii::Point<dim>        point1(0.0, -H / 2.), point2(L, y_upper);
-    std::vector<unsigned int> repetitions({2, 1});
-    dealii::GridGenerator::subdivided_hyper_rectangle(*this->grid->triangulation,
-                                                      repetitions,
-                                                      point1,
-                                                      point2);
-
-    // set boundary indicator
-    for(auto cell : this->grid->triangulation->active_cell_iterators())
-    {
-      for(auto const & face : cell->face_indices())
-      {
-        if((std::fabs(cell->face(face)->center()(0) - 0.0) < 1e-12))
-          cell->face(face)->set_boundary_id(1);
-        if((std::fabs(cell->face(face)->center()(0) - L) < 1e-12))
-          cell->face(face)->set_boundary_id(2);
-      }
-    }
-#endif
 
     this->grid->triangulation->refine_global(this->param.grid.n_refine_global);
   }
