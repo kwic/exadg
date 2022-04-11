@@ -33,8 +33,8 @@ template<int dim>
 class InflowProfileVelocity : public dealii::Function<dim>
 {
 public:
-  InflowProfileVelocity(double const max_velocity, double const radius, double const x, double const y)
-    : dealii::Function<dim>(dim, 0.0), max_velocity(max_velocity), radius(radius), x(x), y(y)
+  InflowProfileVelocity(double const max_velocity, double const radius, double const x, double const z)
+    : dealii::Function<dim>(dim, 0.0), max_velocity(max_velocity), radius(radius), x(x), z(z)
   {
   }
 
@@ -43,17 +43,17 @@ public:
   {
     double result = 0.0;
 
-    if(component == 2) {
+    if(component == 1) {
       double dx = p[0] - x;
-      double dy = p[1] - y;
-      double fac = (dx*dx + dy*dy) / (radius*radius);
+      double dz = p[2] - z;
+      double fac = (dx*dx + dz*dz) / (radius*radius);
       result = std::max(0.0, max_velocity * (1.0 - fac));
     }
     return result;
   }
 
 private:
-  double const max_velocity, radius, x, y;
+  double const max_velocity, radius, x, z;
 };
 
 
@@ -74,9 +74,10 @@ public:
     // clang-format off
     prm.enter_subsection("Application");
       prm.add_parameter("MaxInflowVelocity", input_max_vel, "Maximum inflow velocity");
+      prm.add_parameter("Viscosity", input_viscosity, "Viscosity");
       prm.add_parameter("InflowRadius", input_radius, "Radius of parabolic inflow profile");
       prm.add_parameter("InflowPosX", input_x, "X position of parabolic inflow profile center");
-      prm.add_parameter("InflowPosY", input_y, "Y position of parabolic inflow profile center");
+      prm.add_parameter("InflowPosZ", input_z, "Z position of parabolic inflow profile center");
       prm.add_parameter("InputMesh", input_mesh_path, "Path to mesh VTU file");
     prm.leave_subsection();
     // clang-format on
@@ -105,7 +106,7 @@ private:
     // PHYSICAL QUANTITIES
     this->param.start_time = start_time;
     this->param.end_time   = end_time;
-    this->param.viscosity  = viscosity;
+    this->param.viscosity  = input_viscosity;
 
 
     // TEMPORAL DISCRETIZATION
@@ -238,7 +239,7 @@ private:
 
     // inflow
     this->boundary_descriptor->velocity->dirichlet_bc.insert(
-      pair(1, new InflowProfileVelocity<dim>(input_max_vel, input_radius, input_x, input_y)));
+      pair(1, new InflowProfileVelocity<dim>(input_max_vel, input_radius, input_x, input_z)));
 
     // outflow
     this->boundary_descriptor->velocity->neumann_bc.insert(
@@ -296,16 +297,13 @@ private:
   double input_max_vel = 1.0;
   double input_radius = 1.0;
   double input_x = 1.0;
-  double input_y = 1.0;
+  double input_z = 1.0;
+  double input_viscosity = 1.0e-1;
 
   FormulationViscousTerm const formulation_viscous_term =
     FormulationViscousTerm::LaplaceFormulation;
 
   double max_velocity = input_max_vel;
-  double const viscosity    = 1.0e-1;
-
-  double const H = 2.0;
-  double const L = 4.0;
 
   double const start_time = 0.0;
   double const end_time   = 100.0;

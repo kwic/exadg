@@ -15,15 +15,16 @@
         "RefineTimeMax": "0"
     },
     "Application": {
-        "InputMesh": "./minimal.vtk",
-        "MaxInflowVelocity": "1.0",
-	"InflowRadius": "1.0",
-	"InflowPosX": "1.0",
-	"InflowPosY": "1.0"
+        "InputMesh": "./upper_airways_coarse.vtk",
+        "MaxInflowVelocity": "1.0e-2",
+	"Viscosity": "1.0e-1",
+	"InflowRadius": "8.0",
+	"InflowPosX": "-8.02305",
+	"InflowPosZ": "-94.7495"
     },
     "Output": {
         "OutputDirectory": "output/",
-        "OutputName": "l0_k0",
+        "OutputName": "aaa",
         "WriteOutput": "true"
     }
 }
